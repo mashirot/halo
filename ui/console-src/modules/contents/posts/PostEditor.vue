@@ -327,7 +327,7 @@ const handleFetchContent = async () => {
 
 const handleOpenSettingModal = async () => {
   const { data: latestPost } =
-    await apiClient.extension.post.getcontentHaloRunV1alpha1Post({
+    await apiClient.extension.post.getContentHaloRunV1alpha1Post({
       name: formState.value.post.metadata.name,
     });
   formState.value.post = latestPost;
@@ -342,7 +342,6 @@ const onSettingSaved = (post: Post) => {
   }
 
   formState.value.post = post;
-  settingModal.value = false;
 
   if (!isUpdateMode.value) {
     handleSave();
@@ -351,7 +350,6 @@ const onSettingSaved = (post: Post) => {
 
 const onSettingPublished = (post: Post) => {
   formState.value.post = post;
-  settingModal.value = false;
   handlePublish();
 };
 
@@ -361,7 +359,7 @@ onMounted(async () => {
   if (name.value) {
     // fetch post
     const { data: post } =
-      await apiClient.extension.post.getcontentHaloRunV1alpha1Post({
+      await apiClient.extension.post.getContentHaloRunV1alpha1Post({
         name: name.value as string,
       });
     formState.value.post = post;
@@ -454,10 +452,11 @@ async function handleUploadImage(file: File, options?: AxiosRequestConfig) {
 
 <template>
   <PostSettingModal
-    v-model:visible="settingModal"
+    v-if="settingModal"
     :post="formState.post"
     :publish-support="!isUpdateMode"
     :only-emit="!isUpdateMode"
+    @close="settingModal = false"
     @saved="onSettingSaved"
     @published="onSettingPublished"
   />

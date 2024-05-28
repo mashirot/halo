@@ -305,7 +305,7 @@ const handleFetchContent = async () => {
 // SinglePage settings
 const handleOpenSettingModal = async () => {
   const { data: latestSinglePage } =
-    await apiClient.extension.singlePage.getcontentHaloRunV1alpha1SinglePage({
+    await apiClient.extension.singlePage.getContentHaloRunV1alpha1SinglePage({
       name: formState.value.page.metadata.name,
     });
   formState.value.page = latestSinglePage;
@@ -319,7 +319,6 @@ const onSettingSaved = (page: SinglePage) => {
   }
 
   formState.value.page = page;
-  settingModal.value = false;
 
   if (!isUpdateMode.value) {
     handleSave();
@@ -328,14 +327,13 @@ const onSettingSaved = (page: SinglePage) => {
 
 const onSettingPublished = (singlePage: SinglePage) => {
   formState.value.page = singlePage;
-  settingModal.value = false;
   handlePublish();
 };
 
 onMounted(async () => {
   if (routeQueryName.value) {
     const { data: singlePage } =
-      await apiClient.extension.singlePage.getcontentHaloRunV1alpha1SinglePage({
+      await apiClient.extension.singlePage.getContentHaloRunV1alpha1SinglePage({
         name: routeQueryName.value,
       });
     formState.value.page = singlePage;
@@ -426,10 +424,11 @@ async function handleUploadImage(file: File, options?: AxiosRequestConfig) {
 
 <template>
   <SinglePageSettingModal
-    v-model:visible="settingModal"
+    v-if="settingModal"
     :single-page="formState.page"
     :publish-support="!isUpdateMode"
     :only-emit="!isUpdateMode"
+    @close="settingModal = false"
     @saved="onSettingSaved"
     @published="onSettingPublished"
   />

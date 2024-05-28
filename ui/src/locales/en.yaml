@@ -6,6 +6,8 @@ core:
         placeholder: Username
       password:
         placeholder: Password
+      remember_me:
+        label: Remember Me
     operations:
       submit:
         toast_success: Login successful
@@ -196,6 +198,7 @@ core:
         items:
           published: Published
           draft: Draft
+          scheduling: Scheduling publish
       visible:
         label: Visible
         result: "Visible: {visible}"
@@ -227,6 +230,8 @@ core:
         visits: "{visits} Visits"
         comments: "{comments} Comments"
         pinned: Pinned
+        schedule_publish:
+          tooltip: Schedule publish
     settings:
       title: Settings
       groups:
@@ -256,6 +261,8 @@ core:
           label: Visible
         publish_time:
           label: Publish Time
+          help:
+            schedule_publish: Schedule a timed task and publish it at {datetime}
         template:
           label: Template
         cover:
@@ -569,6 +576,13 @@ core:
         items:
           grid: Grid Mode
           list: List Mode
+      accept:
+        label: Type
+        items:
+          image: Image
+          audio: Audio
+          video: Video
+          file: File
     detail_modal:
       title: "Attachment: {display_name}"
       fields:
@@ -701,6 +715,12 @@ core:
       existed_during_installation:
         title: The theme already exists.
         description: The currently installed theme already exists, do you want to upgrade?
+      clear_templates_cache:
+        button: Clear templates cache
+        title: Clear templates cache
+        description: >-
+          This feature allows you to refresh the cache to view the latest web
+          results after modifying template files at runtime.
     list_modal:
       tabs:
         installed: Installed
@@ -888,6 +908,9 @@ core:
         repo: Source Repository
         load_location: Storage Location
         issues: Issues feedback
+      operations:
+        view_conditions:
+          button: View recent conditions
     loader:
       toast:
         entry_load_failed: Failed to load plugins entry file
@@ -896,6 +919,14 @@ core:
       editor:
         providers:
           default: Default Editor
+    conditions_modal:
+      title: Recent conditions
+      fields:
+        type: Type
+        status: Status
+        reason: Reason
+        message: Message
+        last_transition_time: Last transition time
   user:
     title: Users
     actions:
@@ -1562,6 +1593,7 @@ core:
       verify: Verify
       modify: Modify
       access: Access
+      schedule_publish: Schedule publish
     radio:
       "yes": "Yes"
       "no": "No"

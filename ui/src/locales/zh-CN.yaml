@@ -6,6 +6,8 @@ core:
         placeholder: 用户名
       password:
         placeholder: 密码
+      remember_me:
+        label: 保持登录会话
     operations:
       submit:
         toast_success: 登录成功
@@ -188,6 +190,7 @@ core:
         items:
           published: 已发布
           draft: 未发布
+          scheduling: 定时发布
       visible:
         label: 可见性
         result: 可见性：{visible}
@@ -219,6 +222,8 @@ core:
         visits: 访问量 {visits}
         comments: 评论 {comments}
         pinned: 已置顶
+        schedule_publish:
+          tooltip: 定时发布
     settings:
       title: 文章设置
       groups:
@@ -248,6 +253,8 @@ core:
           label: 可见性
         publish_time:
           label: 发表时间
+          help:
+            schedule_publish: 将设置定时任务，并于 {datetime} 发布
         template:
           label: 自定义模板
         cover:
@@ -557,6 +564,13 @@ core:
         items:
           grid: 网格模式
           list: 列表模式
+      accept:
+        label: 类型
+        items:
+          image: 图片
+          audio: 音频
+          video: 视频
+          file: 文件
     detail_modal:
       title: 附件：{display_name}
       fields:
@@ -673,6 +687,10 @@ core:
       existed_during_installation:
         title: 主题已存在
         description: 当前安装的主题已存在，是否升级？
+      clear_templates_cache:
+        button: 清理模板缓存
+        title: 清除模板缓存
+        description: 此功能适用于在运行时修改模板文件后，刷新缓存以查看最新网页结果。
     list_modal:
       tabs:
         installed: 已安装
@@ -846,6 +864,9 @@ core:
         repo: 源码仓库
         load_location: 存储位置
         issues: 问题反馈
+      operations:
+        view_conditions:
+          button: 查看最近状态
     loader:
       toast:
         entry_load_failed: 加载插件入口文件失败
@@ -854,6 +875,14 @@ core:
       editor:
         providers:
           default: 默认编辑器
+    conditions_modal:
+      title: 插件最近状态
+      fields:
+        type: 类型
+        status: 状态
+        reason: 原因
+        message: 信息
+        last_transition_time: 时间
   user:
     title: 用户
     actions:
@@ -1508,6 +1537,7 @@ core:
       verify: 验证
       modify: 修改
       access: 访问
+      schedule_publish: 定时发布
     radio:
       "yes": 是
       "no": 否
