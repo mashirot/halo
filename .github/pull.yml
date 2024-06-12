@@ -1,0 +1,7 @@
+version: "1"
+rules:
+    - base: production
+      upstream: halo-dev:main
+      mergeMethod: merge
+      conflictReviewers:
+          - mashirot
