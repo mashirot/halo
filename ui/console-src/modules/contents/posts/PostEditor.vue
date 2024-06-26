@@ -1,4 +1,21 @@
 <script lang="ts" setup>
+import EditorProviderSelector from "@/components/dropdown-selector/EditorProviderSelector.vue";
+import UrlPreviewModal from "@/components/preview/UrlPreviewModal.vue";
+import { useAutoSaveContent } from "@/composables/use-auto-save-content";
+import { useContentCache } from "@/composables/use-content-cache";
+import { useEditorExtensionPoints } from "@/composables/use-editor-extension-points";
+import { useSessionKeepAlive } from "@/composables/use-session-keep-alive";
+import { contentAnnotations } from "@/constants/annotations";
+import { randomUUID } from "@/utils/id";
+import { usePermission } from "@/utils/permission";
+import { useContentSnapshot } from "@console/composables/use-content-snapshot";
+import { useSaveKeybinding } from "@console/composables/use-save-keybinding";
+import type { Post, PostRequest } from "@halo-dev/api-client";
+import {
+  consoleApiClient,
+  coreApiClient,
+  ucApiClient,
+} from "@halo-dev/api-client";
 import {
   Dialog,
   IconBookRead,
@@ -12,37 +29,24 @@ import {
   VPageHeader,
   VSpace,
 } from "@halo-dev/components";
-import PostSettingModal from "./components/PostSettingModal.vue";
-import type { Post, PostRequest } from "@halo-dev/api-client";
+import type { EditorProvider } from "@halo-dev/console-shared";
+import { useLocalStorage } from "@vueuse/core";
+import { useRouteQuery } from "@vueuse/router";
+import type { AxiosRequestConfig } from "axios";
 import {
   computed,
-  type ComputedRef,
   nextTick,
   onMounted,
   provide,
   ref,
   toRef,
   watch,
+  type ComputedRef,
 } from "vue";
-import { apiClient } from "@/utils/api-client";
-import { useRouteQuery } from "@vueuse/router";
-import { useRouter } from "vue-router";
-import { randomUUID } from "@/utils/id";
-import { useContentCache } from "@/composables/use-content-cache";
-import { useEditorExtensionPoints } from "@/composables/use-editor-extension-points";
-import type { EditorProvider } from "@halo-dev/console-shared";
-import { useLocalStorage } from "@vueuse/core";
-import EditorProviderSelector from "@/components/dropdown-selector/EditorProviderSelector.vue";
 import { useI18n } from "vue-i18n";
-import UrlPreviewModal from "@/components/preview/UrlPreviewModal.vue";
+import { useRouter } from "vue-router";
+import PostSettingModal from "./components/PostSettingModal.vue";
 import { usePostUpdateMutate } from "./composables/use-post-update-mutate";
-import { contentAnnotations } from "@/constants/annotations";
-import { useAutoSaveContent } from "@/composables/use-auto-save-content";
-import { useContentSnapshot } from "@console/composables/use-content-snapshot";
-import { useSaveKeybinding } from "@console/composables/use-save-keybinding";
-import { useSessionKeepAlive } from "@/composables/use-session-keep-alive";
-import { usePermission } from "@/utils/permission";
-import type { AxiosRequestConfig } from "axios";
 
 const router = useRouter();
 const { t } = useI18n();
@@ -169,7 +173,7 @@ const handleSave = async (options?: { mute?: boolean }) => {
         ).data;
       }
 
-      const { data } = await apiClient.post.updatePostContent({
+      const { data } = await consoleApiClient.content.post.updatePostContent({
         name: formState.value.post.metadata.name,
         content: formState.value.content,
       });
@@ -181,7 +185,7 @@ const handleSave = async (options?: { mute?: boolean }) => {
       // Clear new post content cache
       handleClearCache();
 
-      const { data } = await apiClient.post.draftPost({
+      const { data } = await consoleApiClient.content.post.draftPost({
         postRequest: formState.value,
       });
       formState.value.post = data;
@@ -218,12 +222,12 @@ const handlePublish = async () => {
         ).data;
       }
 
-      await apiClient.post.updatePostContent({
+      await consoleApiClient.content.post.updatePostContent({
         name: postName,
         content: formState.value.content,
       });
 
-      await apiClient.post.publishPost({
+      await consoleApiClient.content.post.publishPost({
         name: postName,
       });
 
@@ -233,11 +237,11 @@ const handlePublish = async () => {
         router.back();
       }
     } else {
-      const { data } = await apiClient.post.draftPost({
+      const { data } = await consoleApiClient.content.post.draftPost({
         postRequest: formState.value,
       });
 
-      await apiClient.post.publishPost({
+      await consoleApiClient.content.post.publishPost({
         name: data.metadata.name,
       });
 
@@ -273,7 +277,7 @@ const handleFetchContent = async () => {
     return;
   }
 
-  const { data } = await apiClient.post.fetchPostHeadContent({
+  const { data } = await consoleApiClient.content.post.fetchPostHeadContent({
     name: formState.value.post.metadata.name,
   });
 
@@ -326,11 +330,26 @@ const handleFetchContent = async () => {
 };
 
 const handleOpenSettingModal = async () => {
-  const { data: latestPost } =
-    await apiClient.extension.post.getContentHaloRunV1alpha1Post({
+  if (isTitleChanged.value) {
+    await coreApiClient.content.post.patchPost({
       name: formState.value.post.metadata.name,
+      jsonPatchInner: [
+        {
+          op: "add",
+          path: "/spec/title",
+          value:
+            formState.value.post.spec.title || t("core.post_editor.untitled"),
+        },
+      ],
     });
+    isTitleChanged.value = false;
+  }
+
+  const { data: latestPost } = await coreApiClient.content.post.getPost({
+    name: formState.value.post.metadata.name,
+  });
   formState.value.post = latestPost;
+
   settingModal.value = true;
 };
 
@@ -360,10 +379,9 @@ onMounted(async () => {
 
   if (name.value) {
     // fetch post
-    const { data: post } =
-      await apiClient.extension.post.getContentHaloRunV1alpha1Post({
-        name: name.value as string,
-      });
+    const { data: post } = await coreApiClient.content.post.getPost({
+      name: name.value as string,
+    });
     formState.value.post = post;
 
     // fetch post content
@@ -440,7 +458,7 @@ async function handleUploadImage(file: File, options?: AxiosRequestConfig) {
     await handleSave();
   }
 
-  const { data } = await apiClient.uc.attachment.createAttachmentForPost(
+  const { data } = await ucApiClient.storage.attachment.createAttachmentForPost(
     {
       file,
       postName: formState.value.post.metadata.name,

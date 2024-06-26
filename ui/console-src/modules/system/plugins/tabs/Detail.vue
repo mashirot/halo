@@ -1,4 +1,13 @@
 <script lang="ts" setup>
+import { rbacAnnotations } from "@/constants/annotations";
+import { pluginLabels, roleLabels } from "@/constants/labels";
+import { formatDatetime } from "@/utils/date";
+import {
+  PluginStatusPhaseEnum,
+  coreApiClient,
+  type Plugin,
+  type Role,
+} from "@halo-dev/api-client";
 import {
   VAlert,
   VButton,
@@ -6,21 +15,11 @@ import {
   VDescriptionItem,
   VSwitch,
 } from "@halo-dev/components";
-import type { Ref } from "vue";
-import { computed, inject } from "vue";
-import { apiClient } from "@/utils/api-client";
-import {
-  PluginStatusPhaseEnum,
-  type Plugin,
-  type Role,
-} from "@halo-dev/api-client";
-import { pluginLabels, roleLabels } from "@/constants/labels";
-import { rbacAnnotations } from "@/constants/annotations";
-import { usePluginLifeCycle } from "../composables/use-plugin";
-import { formatDatetime } from "@/utils/date";
 import { useQuery } from "@tanstack/vue-query";
-import { ref } from "vue";
+import type { Ref } from "vue";
+import { computed, inject, ref } from "vue";
 import PluginConditionsModal from "../components/PluginConditionsModal.vue";
+import { usePluginLifeCycle } from "../composables/use-plugin";
 
 const plugin = inject<Ref<Plugin | undefined>>("plugin");
 const { changeStatus, changingStatus } = usePluginLifeCycle(plugin);
@@ -33,7 +32,7 @@ interface RoleTemplateGroup {
 const { data: pluginRoleTemplates } = useQuery({
   queryKey: ["plugin-roles", plugin?.value?.metadata.name],
   queryFn: async () => {
-    const { data } = await apiClient.extension.role.listV1alpha1Role({
+    const { data } = await coreApiClient.role.listRole({
       page: 0,
       size: 0,
       labelSelector: [

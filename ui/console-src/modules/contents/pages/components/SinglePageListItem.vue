@@ -1,29 +1,28 @@
 <script lang="ts" setup>
+import { singlePageLabels } from "@/constants/labels";
+import { formatDatetime } from "@/utils/date";
+import { usePermission } from "@/utils/permission";
+import type { ListedSinglePage, SinglePage } from "@halo-dev/api-client";
+import { coreApiClient } from "@halo-dev/api-client";
 import {
+  Dialog,
+  IconExternalLinkLine,
   IconEye,
   IconEyeOff,
-  IconExternalLinkLine,
-  VSpace,
-  Dialog,
-  VStatusDot,
+  Toast,
+  VDropdownDivider,
+  VDropdownItem,
   VEntity,
   VEntityField,
-  Toast,
-  VDropdownItem,
-  VDropdownDivider,
+  VSpace,
+  VStatusDot,
 } from "@halo-dev/components";
-import { computed, ref } from "vue";
-import type { ListedSinglePage, SinglePage } from "@halo-dev/api-client";
-import { apiClient } from "@/utils/api-client";
-import { formatDatetime } from "@/utils/date";
-import { RouterLink } from "vue-router";
-import { cloneDeep } from "lodash-es";
-import { usePermission } from "@/utils/permission";
-import { singlePageLabels } from "@/constants/labels";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
-import { useI18n } from "vue-i18n";
-import { inject } from "vue";
+import { cloneDeep } from "lodash-es";
 import type { Ref } from "vue";
+import { computed, inject, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { RouterLink } from "vue-router";
 import ContributorList from "../../_components/ContributorList.vue";
 
 const { currentUserHasPermission } = usePermission();
@@ -72,12 +71,11 @@ const isPublishing = computed(() => {
 
 const { mutate: changeVisibleMutation } = useMutation({
   mutationFn: async (singlePage: SinglePage) => {
-    const { data } =
-      await apiClient.extension.singlePage.getContentHaloRunV1alpha1SinglePage({
-        name: singlePage.metadata.name,
-      });
+    const { data } = await coreApiClient.content.singlePage.getSinglePage({
+      name: singlePage.metadata.name,
+    });
     data.spec.visible = data.spec.visible === "PRIVATE" ? "PUBLIC" : "PRIVATE";
-    await apiClient.extension.singlePage.updateContentHaloRunV1alpha1SinglePage(
+    await coreApiClient.content.singlePage.updateSinglePage(
       {
         name: singlePage.metadata.name,
         singlePage: data,
@@ -107,12 +105,10 @@ const handleDelete = async () => {
     onConfirm: async () => {
       const singlePageToUpdate = cloneDeep(props.singlePage.page);
       singlePageToUpdate.spec.deleted = true;
-      await apiClient.extension.singlePage.updateContentHaloRunV1alpha1SinglePage(
-        {
-          name: props.singlePage.page.metadata.name,
-          singlePage: singlePageToUpdate,
-        }
-      );
+      await coreApiClient.content.singlePage.updateSinglePage({
+        name: props.singlePage.page.metadata.name,
+        singlePage: singlePageToUpdate,
+      });
       await queryClient.invalidateQueries({ queryKey: ["singlePages"] });
 
       Toast.success(t("core.common.toast.delete_success"));

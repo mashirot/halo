@@ -1,26 +1,26 @@
 <script lang="ts" setup>
+import ThemePreviewModal from "@console/modules/interface/themes/components/preview/ThemePreviewModal.vue";
+import { consoleApiClient } from "@halo-dev/api-client";
 import {
+  Dialog,
+  IconAccountCircleLine,
   IconArrowRight,
   IconBookRead,
+  IconDatabase2Line,
   IconFolder,
   IconPages,
-  IconPlug,
-  IconUserSettings,
   IconPalette,
-  IconWindowLine,
+  IconPlug,
   IconSearch,
-  IconDatabase2Line,
-  VCard,
-  IconAccountCircleLine,
-  Dialog,
+  IconUserSettings,
+  IconWindowLine,
   Toast,
+  VCard,
 } from "@halo-dev/components";
-import { markRaw, ref, type Component } from "vue";
-import { useRouter } from "vue-router";
-import ThemePreviewModal from "@console/modules/interface/themes/components/preview/ThemePreviewModal.vue";
-import { apiClient } from "@/utils/api-client";
-import { useI18n } from "vue-i18n";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-vue";
+import { markRaw, ref, type Component } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 
 interface Action {
   icon: Component;
@@ -143,7 +143,7 @@ const actions: Action[] = [
         confirmText: t("core.common.buttons.confirm"),
         cancelText: t("core.common.buttons.cancel"),
         onConfirm: async () => {
-          await apiClient.indices.buildPostIndices();
+          await consoleApiClient.content.indices.buildPostIndices();
           Toast.success(
             t(
               "core.dashboard.widgets.presets.quicklink.actions.refresh_search_engine.success_message"
@@ -170,7 +170,7 @@ const actions: Action[] = [
         confirmText: t("core.common.buttons.confirm"),
         cancelText: t("core.common.buttons.cancel"),
         onConfirm: async () => {
-          await apiClient.cache.evictCache({ name: "page" });
+          await consoleApiClient.cache.evictCache({ name: "page" });
           Toast.success(
             t(
               "core.dashboard.widgets.presets.quicklink.actions.evict_page_cache.success_message"

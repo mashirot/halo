@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import TotpConfigureModal from "./components/TotpConfigureModal.vue";
-import TotpDeletionModal from "./components/TotpDeletionModal.vue";
-import { ref } from "vue";
+import StatusDotField from "@/components/entity-fields/StatusDotField.vue";
+import { ucApiClient } from "@halo-dev/api-client";
 import {
   VButton,
   VEntity,
@@ -10,17 +9,18 @@ import {
   VSpace,
 } from "@halo-dev/components";
 import { useQuery } from "@tanstack/vue-query";
-import { apiClient } from "@/utils/api-client";
-import StatusDotField from "@/components/entity-fields/StatusDotField.vue";
+import { ref } from "vue";
 import RiShieldKeyholeLine from "~icons/ri/shield-keyhole-line";
-import TwoFactorEnableModal from "./components/TwoFactorEnableModal.vue";
+import TotpConfigureModal from "./components/TotpConfigureModal.vue";
+import TotpDeletionModal from "./components/TotpDeletionModal.vue";
 import TwoFactorDisableModal from "./components/TwoFactorDisableModal.vue";
+import TwoFactorEnableModal from "./components/TwoFactorEnableModal.vue";
 
 const { data: settings, isLoading } = useQuery({
   queryKey: ["two-factor-settings"],
   queryFn: async () => {
     const { data } =
-      await apiClient.twoFactor.getTwoFactorAuthenticationSettings();
+      await ucApiClient.security.twoFactor.getTwoFactorAuthenticationSettings();
     return data;
   },
 });

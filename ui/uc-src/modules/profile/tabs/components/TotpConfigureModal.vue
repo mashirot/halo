@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { apiClient } from "@/utils/api-client";
+import type { TotpRequest } from "@halo-dev/api-client";
+import { ucApiClient } from "@halo-dev/api-client";
+import { Toast, VButton, VModal, VSpace } from "@halo-dev/components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { useQRCode } from "@vueuse/integrations/useQRCode";
-import { Toast, VButton, VModal, VSpace } from "@halo-dev/components";
-import { computed } from "vue";
-import type { TotpRequest } from "@halo-dev/api-client";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const queryClient = useQueryClient();
 
@@ -18,7 +17,7 @@ const modal = ref<InstanceType<typeof VModal> | null>(null);
 const { data } = useQuery({
   queryKey: ["totp-auth-link"],
   queryFn: async () => {
-    const { data } = await apiClient.twoFactor.getTotpAuthLink();
+    const { data } = await ucApiClient.security.twoFactor.getTotpAuthLink();
     return data;
   },
 });
@@ -28,7 +27,7 @@ const qrcode = useQRCode(computed(() => data.value?.authLink || ""));
 const { mutate, isLoading } = useMutation({
   mutationKey: ["configure-totp"],
   mutationFn: async ({ totpRequest }: { totpRequest: TotpRequest }) => {
-    await apiClient.twoFactor.configurerTotp({
+    await ucApiClient.security.twoFactor.configurerTotp({
       totpRequest: totpRequest,
     });
   },
