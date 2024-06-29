@@ -3,6 +3,7 @@ package run.halo.app.theme.finders.impl;
 import static run.halo.app.extension.index.query.QueryFactory.notEqual;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -16,6 +17,8 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Sort;
+import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import run.halo.app.content.CategoryService;
@@ -86,12 +89,16 @@ public class CategoryFinderImpl implements CategoryFinder {
 
     @Override
     public Flux<CategoryTreeVo> listAsTree() {
-        return this.toCategoryTreeVoFlux(null);
+        return listAll()
+            .collectList()
+            .flatMapMany(list -> Flux.fromIterable(listToTree(list, null)));
     }
 
     @Override
     public Flux<CategoryTreeVo> listAsTree(String name) {
-        return this.toCategoryTreeVoFlux(name);
+        return listAllFor(name)
+            .collectList()
+            .flatMapMany(list -> Flux.fromIterable(listToTree(list, name)));
     }
 
     @Override
@@ -101,34 +108,50 @@ public class CategoryFinderImpl implements CategoryFinder {
             .map(CategoryVo::from);
     }
 
-    Flux<CategoryTreeVo> toCategoryTreeVoFlux(String name) {
-        return listAll()
-            .collectList()
-            .flatMapIterable(categoryVos -> {
-                Map<String, CategoryTreeVo> nameIdentityMap = categoryVos.stream()
-                    .map(CategoryTreeVo::from)
-                    .collect(Collectors.toMap(categoryVo -> categoryVo.getMetadata().getName(),
-                        Function.identity()));
-
-                nameIdentityMap.forEach((nameKey, value) -> {
-                    List<String> children = value.getSpec().getChildren();
-                    if (children == null) {
-                        return;
+    private Flux<CategoryVo> listAllFor(String parentName) {
+        return Mono.defer(
+                () -> {
+                    if (StringUtils.isBlank(parentName)) {
+                        return Mono.just(false);
                     }
-                    for (String child : children) {
-                        CategoryTreeVo childNode = nameIdentityMap.get(child);
-                        if (childNode != null) {
-                            childNode.setParentName(nameKey);
+                    return categoryService.isCategoryHidden(parentName);
+                })
+            .flatMapMany(
+                isHidden -> client.listAll(Category.class, new ListOptions(), defaultSort())
+                    .filter(category -> {
+                        if (isHidden) {
+                            return true;
                         }
-                    }
-                });
-                var tree = listToTree(nameIdentityMap.values(), name);
-                recomputePostCount(tree);
-                return tree;
-            });
+                        return !category.getSpec().isHideFromList();
+                    })
+                    .map(CategoryVo::from)
+            );
     }
 
-    static List<CategoryTreeVo> listToTree(Collection<CategoryTreeVo> list, String name) {
+    private List<CategoryTreeVo> listToTree(List<CategoryVo> categoryVos, @Nullable String name) {
+        Map<String, CategoryTreeVo> nameIdentityMap = categoryVos.stream()
+            .map(CategoryTreeVo::from)
+            .collect(Collectors.toMap(categoryVo -> categoryVo.getMetadata().getName(),
+                Function.identity()));
+
+        nameIdentityMap.forEach((nameKey, value) -> {
+            List<String> children = value.getSpec().getChildren();
+            if (children == null) {
+                return;
+            }
+            for (String child : children) {
+                CategoryTreeVo childNode = nameIdentityMap.get(child);
+                if (childNode != null) {
+                    childNode.setParentName(nameKey);
+                }
+            }
+        });
+        var tree = listToTree(nameIdentityMap.values(), name);
+        recomputePostCount(tree);
+        return tree;
+    }
+
+    private static List<CategoryTreeVo> listToTree(Collection<CategoryTreeVo> list, String name) {
         Map<String, List<CategoryTreeVo>> parentNameIdentityMap = list.stream()
             .filter(categoryTreeVo -> categoryTreeVo.getParentName() != null)
             .collect(Collectors.groupingBy(CategoryTreeVo::getParentName));
@@ -153,6 +176,7 @@ public class CategoryFinderImpl implements CategoryFinder {
         Category.CategorySpec categorySpec = new Category.CategorySpec();
         categorySpec.setSlug("/");
         return CategoryTreeVo.builder()
+            .metadata(new Metadata())
             .spec(categorySpec)
             .postCount(0)
             .children(treeNodes)
@@ -212,6 +236,49 @@ public class CategoryFinderImpl implements CategoryFinder {
     public Mono<CategoryVo> getParentByName(String name) {
         return categoryService.getParentByName(name)
             .map(CategoryVo::from);
+    }
+
+    @Override
+    public Flux<CategoryVo> getBreadcrumbs(String name) {
+        return listAllFor(name)
+            .collectList()
+            .map(list -> listToTree(list, null))
+            .flatMapMany(treeNodes -> {
+                var rootNode = dummyVirtualRoot(treeNodes);
+                var paths = new ArrayList<CategoryVo>();
+                findPathHelper(rootNode, name, paths);
+                return Flux.fromIterable(paths);
+            });
+    }
+
+    private static boolean findPathHelper(CategoryTreeVo node, String targetName,
+        List<CategoryVo> path) {
+        Assert.notNull(targetName, "Target name must not be null");
+        if (node == null) {
+            return false;
+        }
+
+        // null name is just a virtual root
+        if (node.getMetadata().getName() != null) {
+            path.add(CategoryTreeVo.toCategoryVo(node));
+        }
+
+        // node maybe a virtual root node so it may have null name
+        if (targetName.equals(node.getMetadata().getName())) {
+            return true;
+        }
+
+        for (CategoryTreeVo child : node.getChildren()) {
+            if (findPathHelper(child, targetName, path)) {
+                return true;
+            }
+        }
+
+        // if the target node is not in the current subtree, remove the current node to roll back
+        if (!path.isEmpty()) {
+            path.remove(path.size() - 1);
+        }
+        return false;
     }
 
     int pageNullSafe(Integer page) {

@@ -3,6 +3,7 @@ package run.halo.app.theme.finders.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -12,6 +13,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -55,6 +58,7 @@ class CategoryFinderImplTest {
     @BeforeEach
     void setUp() {
         categoryFinder = new CategoryFinderImpl(client, categoryService);
+        lenient().when(categoryService.isCategoryHidden(any())).thenReturn(Mono.just(false));
     }
 
     @Test
@@ -188,13 +192,13 @@ class CategoryFinderImplTest {
             var json = Files.readString(file.toPath());
             categories = JsonUtils.jsonToObject(json, new TypeReference<>() {
             });
-            when(client.listAll(eq(Category.class), any(ListOptions.class), any(Sort.class)))
-                .thenReturn(Flux.fromIterable(categories));
         }
 
         @Test
         void computePostCountFromTree() {
-            var treeVos = categoryFinder.toCategoryTreeVoFlux("全部")
+            when(client.listAll(eq(Category.class), any(ListOptions.class), any(Sort.class)))
+                .thenReturn(Flux.fromIterable(categories));
+            var treeVos = categoryFinder.listAsTree("全部")
                 .collectList().block();
             assertThat(treeVos).hasSize(1);
             String s = visualizeTree(treeVos.get(0).getChildren());
@@ -226,6 +230,66 @@ class CategoryFinderImplTest {
                         ├── IndependentChild3 (2)
                         └── IndependentChild4 (3)
                 """);
+        }
+
+        @Test
+        void getBreadcrumbsTest() {
+            when(client.listAll(eq(Category.class), any(ListOptions.class), any(Sort.class)))
+                .thenReturn(Flux.fromIterable(categories));
+            // first level
+            var breadcrumbs = categoryFinder.getBreadcrumbs("全部").collectList().block();
+            assertThat(toNames(breadcrumbs)).containsSequence("全部");
+
+            // second level
+            breadcrumbs = categoryFinder.getBreadcrumbs("AnotherRootChild").collectList().block();
+            assertThat(toNames(breadcrumbs)).containsSequence("全部", "AnotherRootChild");
+
+            // more levels
+            breadcrumbs = categoryFinder.getBreadcrumbs("DeepNode5").collectList().block();
+            assertThat(toNames(breadcrumbs)).containsSequence("全部", "AnotherRootChild", "Child1",
+                "SubChild2", "DeepNode3", "DeepNode5");
+
+            breadcrumbs = categoryFinder.getBreadcrumbs("IndependentChild4").collectList().block();
+            assertThat(toNames(breadcrumbs)).containsSequence("全部", "FIT2CLOUD",
+                "IndependentNode",
+                "IndependentChild4");
+
+            breadcrumbs = categoryFinder.getBreadcrumbs("SubNode4").collectList().block();
+            assertThat(toNames(breadcrumbs)).containsSequence("全部", "AnotherRootChild", "Child2",
+                "IndependentSubNode", "SubNode4");
+
+            // not exist
+            breadcrumbs = categoryFinder.getBreadcrumbs("not-exist").collectList().block();
+            assertThat(toNames(breadcrumbs)).isEmpty();
+        }
+
+        @Test
+        void getBreadcrumbsForHiddenTest() {
+            Map<String, Category> categoryMap = categories.stream()
+                .collect(
+                    Collectors.toMap(item -> item.getMetadata().getName(), Function.identity()));
+            var category = categoryMap.get("IndependentNode");
+            category.getSpec().setHideFromList(true);
+            when(client.listAll(eq(Category.class), any(ListOptions.class), any(Sort.class)))
+                .thenReturn(Flux.fromIterable(categoryMap.values()));
+
+            when(categoryService.isCategoryHidden(eq("IndependentChild4")))
+                .thenReturn(Mono.just(true));
+
+            var breadcrumbs = categoryFinder.getBreadcrumbs("IndependentChild4")
+                .collectList().block();
+            assertThat(toNames(breadcrumbs)).containsSequence("全部", "FIT2CLOUD",
+                "IndependentNode",
+                "IndependentChild4");
+        }
+
+        static List<String> toNames(List<CategoryVo> categories) {
+            if (categories == null) {
+                return List.of();
+            }
+            return categories.stream()
+                .map(category -> category.getMetadata().getName())
+                .toList();
         }
     }
 
